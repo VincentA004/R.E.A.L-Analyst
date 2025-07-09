@@ -1,3 +1,4 @@
 sample.py
 .env
 foundry_sdk_phase/__pycache__
+settings.json
