@@ -1,7 +1,7 @@
-import os
+from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
-TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "prompt_templates")
+TEMPLATE_DIR = Path(__file__).parent / "prompt_templates"
 env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
 
 def render_prompt(template_name: str, context: dict = None) -> str:

@@ -3,8 +3,7 @@ from dotenv import load_dotenv
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
 from agent_definitions import get_all_agents
-
-# from foundry_sdk_phase.setup_agent_tools import register_all_tools
+from setup_agent_tools import register_all_tools
 # from foundry_sdk_phase.setup_agent_knowledge import load_all_knowledge
 
 load_dotenv()
@@ -44,10 +43,7 @@ def init_foundry_environment():
 
 
     print("Registering tools...")
-    # register_all_tools(client)
-
-    print("Loading assistant vector store knowledge...")
-    # load_all_knowledge(client)
+    register_all_tools(client)
 
     print("Foundry agent environment setup complete.")
 
