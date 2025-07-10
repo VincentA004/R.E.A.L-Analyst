@@ -1,75 +1,65 @@
-
 import os
 import json
 from pathlib import Path
 from dotenv import load_dotenv
 from azure.ai.projects import AIProjectClient
-from azure.ai.agents import AgentsClient
-from azure.ai.agents.models import OpenApiTool,  OpenApiAnonymousAuthDetails,OpenApiConnectionAuthDetails, OpenApiConnectionSecurityScheme
+from azure.ai.agents.models import Agent
+from azure.ai.agents.models import OpenApiTool, OpenApiAnonymousAuthDetails, OpenApiConnectionAuthDetails, OpenApiConnectionSecurityScheme
 from azure.ai.agents.models import BingGroundingTool, FileSearchTool
 from azure.ai.agents.models import ConnectedAgentTool
 
 def register_all_tools(client: AIProjectClient):
-
-
+    """Register all tools for the agents."""
     agent_map = {agent.name: agent for agent in client.agents.list_agents()}
-    
+
     zoning_agent = agent_map.get("ZoningAdvisorAgent")
-    valuation_agent = agent_map.get("ValuationExpertAgent") 
+    valuation_agent = agent_map.get("ValuationExpertAgent")
     investment_agent = agent_map.get("InvestmentAdvisorAgent")
-    
-    register_zoning_tools(zoning_agent, client)
-    register_valuation_tools(valuation_agent, client)
 
-    register_investment_tools(investment_agent, zoning_agent, valuation_agent, client)
+    zoning_agent = register_zoning_tools(zoning_agent, client)
+    valuation_agent = register_valuation_tools(valuation_agent, client)
+    investment_agent = register_investment_tools(investment_agent, zoning_agent, valuation_agent, client)
 
-def register_investment_tools(investment_agent: AgentsClient, zoning_subagent: AgentsClient, valuation_subagent: AgentsClient, client: AIProjectClient):
-    """
-    Registers investment-related tools for the InvestmentAdvisorAgent.
-    """
-
-    # Register Zoning and Valuation Subagents
+def register_investment_tools(investment_agent: Agent, zoning_subagent: Agent, valuation_subagent: Agent, client: AIProjectClient) -> Agent:
+    """Registers subagent tools for the InvestmentAdvisorAgent."""
     zoning_tool = ConnectedAgentTool(
-        agent_id=zoning_subagent.id,
-        name="Zoning Advisor",
+        id=zoning_subagent.id,
+        name="ZoningAdvisorAgent",
         description="Connects to the Zoning Advisor Agent for zoning-related queries."
     )
 
     valuation_tool = ConnectedAgentTool(
-        agent_id=valuation_subagent.id,
-        name="Valuation Expert",
+        id=valuation_subagent.id,
+        name="ValuationExpertAgent",
         description="Connects to the Valuation Expert Agent for property valuation queries."
     )
 
-    investment_agent.update_agent(
+    updated_agent = client.agents.update_agent(
         agent_id=investment_agent.id,
-        tools=[zoning_tool, valuation_tool]
+        tools=zoning_tool.definitions + valuation_tool.definitions
     )
+    return updated_agent
 
-def register_zoning_tools(zoning_agent: AgentsClient, client: AIProjectClient):
-    """
-    Registers zoning-related tools for the ZoningAdvisorAgent.
-    """
-    # Register File Search Tool
-    file_search_tool = FileSearchTool(
-       vector_store_ids = []
-    )
-    
+def register_zoning_tools(zoning_agent: Agent, client: AIProjectClient) -> Agent:
+    """Registers zoning-related tools for the ZoningAdvisorAgent."""
+    file_search_tool = FileSearchTool(vector_store_ids=[])
+
     bing_connection_name = os.getenv("BING_CONNECTION_NAME")
     if not bing_connection_name:
         raise EnvironmentError("Missing BING_CONNECTION_NAME in environment variables")
-    
+
     bing_connection = client.connections.get(bing_connection_name)
     grounding_tool = BingGroundingTool(connection_id=bing_connection.id)
 
-    zoning_agent.update_agent(
+    updated_agent = client.agents.update_agent(
         agent_id=zoning_agent.id,
-        tools=[file_search_tool, grounding_tool]
+        tools=file_search_tool.definitions + grounding_tool.definitions,
     )
-    
-def register_valuation_tools(valuation_agent: AgentsClient, client: AIProjectClient): 
-    
-    rentcast_tool = _register_rentcast_tool(
+    return updated_agent
+
+def register_valuation_tools(valuation_agent: Agent, client: AIProjectClient) -> Agent:
+    """Registers valuation-related tools for the ValuationExpertAgent."""
+    rentcast_tool = _rentcast_tool(
         client=client,
         name="rentcast_api",
         description="Tool for accessing RentCast real estate data, including rent estimates, comps, and market trends.",
@@ -79,20 +69,18 @@ def register_valuation_tools(valuation_agent: AgentsClient, client: AIProjectCli
     bing_connection_name = os.getenv("BING_CONNECTION_NAME")
     if not bing_connection_name:
         raise EnvironmentError("Missing BING_CONNECTION_NAME in environment variables")
-    
+
     bing_connection = client.connections.get(bing_connection_name)
     grounding_tool = BingGroundingTool(connection_id=bing_connection.id)
-    
-    valuation_agent.update_agent(
+
+    updated_agent = client.agents.update_agent(
         agent_id=valuation_agent.id,
-        tools = [rentcast_tool, grounding_tool]
+        tools=rentcast_tool.definitions + grounding_tool.definitions,
     )
+    return updated_agent
 
-
-def _register_rentcast_tool(client: AIProjectClient, name: str, description: str, auth_type: str = "anonymous") -> OpenApiTool:
-    """
-    Registers the RentCast OpenAPI tool using either anonymous or connection-based authentication.
-    """
+def _rentcast_tool(client: AIProjectClient, name: str, description: str, auth_type: str = "anonymous") -> OpenApiTool:
+    """Builds the RentCast OpenAPI tool with either anonymous or connection-based authentication."""
     load_dotenv()
     schema_dir = Path(__file__).parent / "openapi_schemas"
 
@@ -137,4 +125,3 @@ def _register_rentcast_tool(client: AIProjectClient, name: str, description: str
 
     else:
         raise ValueError(f"Unsupported auth_type '{auth_type}'. Use 'anonymous' or 'connection'.")
-
