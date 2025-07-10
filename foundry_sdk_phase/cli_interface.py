@@ -23,7 +23,7 @@ def run_prompt_with_agent(client: AIProjectClient, agent_name: str, user_input: 
     messages = client.agents.messages.list(thread_id=thread.id, order=ListSortOrder.ASCENDING)
     for msg in messages:
         if msg.role == "assistant" and msg.text_messages:
-            print(f"\n🔍 Agent Response:\n{msg.text_messages[-1].text.value}\n")
+            print(f"\n R.E.A.L>:\n{msg.text_messages[-1].text.value}\n")
             return
 
 def main():
