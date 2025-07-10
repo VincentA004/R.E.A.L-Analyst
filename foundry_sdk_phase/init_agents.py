@@ -12,12 +12,9 @@ AZURE_PROJECT_ENDPOINT = os.getenv("AZURE_PROJECT_ENDPOINT")
 MODEL_DEPLOYMENT_NAME = os.getenv("MODEL_DEPLOYMENT_NAME")
 
 
-def init_foundry_environment():
-    if not AZURE_PROJECT_ENDPOINT or not MODEL_DEPLOYMENT_NAME:
-        raise EnvironmentError("Missing AZURE_PROJECT_ENDPOINT or MODEL_DEPLOYMENT_NAME in .env")
-
-    credential = DefaultAzureCredential()
-    client = AIProjectClient(endpoint=AZURE_PROJECT_ENDPOINT, credential=credential)
+def init_foundry_environment(client: AIProjectClient = None):
+    if  not MODEL_DEPLOYMENT_NAME:
+        raise EnvironmentError("Missing MODEL_DEPLOYMENT_NAME in .env")
 
     print("Rendering agent templates...")
     agent_templates = get_all_agents()

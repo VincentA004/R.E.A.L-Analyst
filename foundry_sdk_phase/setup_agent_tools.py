@@ -62,7 +62,7 @@ def register_valuation_tools(valuation_agent: Agent, client: AIProjectClient) ->
     rentcast_tool = _rentcast_tool(
         client=client,
         name="rentcast_api",
-        description="Tool for accessing RentCast real estate data, including rent estimates, comps, and market trends.",
+        description="Fetch property rent estimates and market data using the RentCast API.",
         auth_type=os.getenv("RENTCAST_AUTH_MODE", "anonymous")
     )
 
