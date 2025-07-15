@@ -1,5 +1,7 @@
 import os
 from dotenv import load_dotenv
+from azure.identity import DefaultAzureCredential
+from azure.ai.projects import AIProjectClient
 from azure.ai.projects import AIProjectClient
 from .agent_definitions import get_all_agents
 from .setup_agent_tools import register_all_tools
@@ -11,9 +13,14 @@ AZURE_PROJECT_ENDPOINT = os.getenv("AZURE_PROJECT_ENDPOINT")
 MODEL_DEPLOYMENT_NAME = os.getenv("MODEL_DEPLOYMENT_NAME")
 
 
-def init_foundry_environment(client: AIProjectClient = None):
-    if  not MODEL_DEPLOYMENT_NAME:
+def init_foundry() -> tuple[AIProjectClient, dict]:
+    if not AZURE_PROJECT_ENDPOINT:
+        raise EnvironmentError("Missing AZURE_PROJECT_ENDPOINT in .env")
+    if not MODEL_DEPLOYMENT_NAME:
         raise EnvironmentError("Missing MODEL_DEPLOYMENT_NAME in .env")
+
+    credential = DefaultAzureCredential()
+    client = AIProjectClient(endpoint=AZURE_PROJECT_ENDPOINT, credential=credential)
 
     print("Rendering agent templates...")
     agent_templates = get_all_agents()
@@ -42,7 +49,8 @@ def init_foundry_environment(client: AIProjectClient = None):
     register_all_tools(client)
 
     print("Foundry agent environment setup complete.")
+    return client, existing_agent_map
 
 
 if __name__ == "__main__":
-    init_foundry_environment()
+    init_foundry()
