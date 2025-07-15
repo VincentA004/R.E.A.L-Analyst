@@ -1,5 +1,5 @@
 
-from foundry_sdk_phase.agent_definitions import get_all_agents
+from agent_definitions import get_all_agents
  # Now this will work
 
 def test_agent_definitions():

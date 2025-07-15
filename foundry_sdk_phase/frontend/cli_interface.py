@@ -4,26 +4,25 @@ from azure.identity import DefaultAzureCredential
 from azure.ai.projects import AIProjectClient
 from azure.ai.agents.models import ListSortOrder
 
-from init_agents import init_foundry_environment
+from foundry_sdk_phase.backend import init_foundry_environment
 
-def run_prompt_with_agent(client: AIProjectClient, agent_name: str, user_input: str):
-    agent = next(agent for agent in client.agents.list_agents() if agent.name == agent_name)
-    thread = client.agents.threads.create()
-    message = client.agents.messages.create(
-        thread_id=thread.id,
+def run_prompt_with_agent(client: AIProjectClient, agent_id: str, thread_id: str, user_input: str):
+    client.agents.messages.create(
+        thread_id=thread_id,
         role="user",
         content=user_input
     )
-    run = client.agents.runs.create_and_process(thread_id=thread.id, agent_id=agent.id)
+
+    run = client.agents.runs.create_and_process(thread_id=thread_id, agent_id=agent_id)
 
     if run.status == "failed":
         print(f"[ERROR] Run failed: {run.last_error}")
         return
 
-    messages = client.agents.messages.list(thread_id=thread.id, order=ListSortOrder.ASCENDING)
+    messages = client.agents.messages.list(thread_id=thread_id, order=ListSortOrder.ASCENDING)
     for msg in messages:
         if msg.role == "assistant" and msg.text_messages:
-            print(f"\n R.E.A.L>:\n{msg.text_messages[-1].text.value}\n")
+            print(f"\nR.E.A.L> {msg.text_messages[-1].text.value}\n")
             return
 
 def main():
@@ -43,15 +42,19 @@ def main():
     print("Welcome to the R.E.A.L Agents CLI!")
     print("Type your question or type 'quit' to exit.\n")
 
+    # Get agent and create thread once
+    agent = next(agent for agent in client.agents.list_agents() if agent.name == "InvestmentAdvisorAgent")
+    thread = client.agents.threads.create()
+
     while True:
-        user_prompt = input("sys> ")
+        user_prompt = input("USER> ")
         if user_prompt.lower() in {"quit", "exit"}:
             break
         if not user_prompt.strip():
             print("Please enter a prompt.")
             continue
 
-        run_prompt_with_agent(client, "InvestmentAdvisorAgent", user_prompt)
+        run_prompt_with_agent(client, agent.id, thread.id, user_prompt)
 
 if __name__ == "__main__":
     main()

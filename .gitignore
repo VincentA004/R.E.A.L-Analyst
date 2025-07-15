@@ -2,3 +2,6 @@ sample.py
 .env
 foundry_sdk_phase/__pycache__
 settings.json
+rentcast_openapi.json
+schema_with_api_key.json
+test_tool.py

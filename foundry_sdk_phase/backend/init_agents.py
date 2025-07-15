@@ -1,9 +1,8 @@
 import os
 from dotenv import load_dotenv
 from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
-from agent_definitions import get_all_agents
-from setup_agent_tools import register_all_tools
+from .agent_definitions import get_all_agents
+from .setup_agent_tools import register_all_tools
 # from foundry_sdk_phase.setup_agent_knowledge import load_all_knowledge
 
 load_dotenv()
