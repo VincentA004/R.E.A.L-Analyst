@@ -31,7 +31,6 @@ The current version of the project represents **Phase 1**, a streamlined multi-a
 👉 **Technical implementation details for Phase 1 can be found [here](./foundry_sdk_phase/README.md).**
 
 
----
 
 ---
 
