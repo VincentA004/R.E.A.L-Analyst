@@ -33,27 +33,36 @@ The current version of the project represents **Phase 1**, a streamlined multi-a
 
 ---
 
+---
+
 ## Phase 2: Full Enterprise Agentic Platform (In Progress)
 
-**Phase 2** transforms R.E.A.L.-Analyst into a fully cloud-native, production-grade, enterprise agentic application. It will leverage **Azure AI Foundry Agent Service** for hosting, **Semantic Kernel** for rich multi-agent orchestration, and fully integrated Azure infrastructure for scalability, security, and extensibility.
+**Phase 2** transforms R.E.A.L.-Analyst into a fully cloud-native, production-grade, enterprise agentic application. It leverages **Azure AI Foundry Agent Service** for hosting, **Semantic Kernel** for rich multi-agent orchestration, and a full Azure-native stack for deployment, storage, memory, and observability.
 
 ### Key Architecture Highlights
 
 - **Semantic Kernel Orchestration**  
-  Complex workflows and coordination across specialized agents  
-  Support for reasoning, retries, tool chaining, and decision delegation
+  Handles complex multi-agent workflows with reasoning, retry logic, tool chaining, and decision delegation.
 
 - **Azure AI Foundry Agent Service**  
-  Full production hosting of containerized agents  
-  Native observability, scaling, and lifecycle management
+  Hosts agents in production with native observability, autoscaling, and memory persistence.
 
 - **Custom Agentic Memory Layer**  
-  Built on **Azure Cosmos DB** for structured thread-agent-user memory
+  Built on **Azure Cosmos DB**, organizing memory by user, thread, and agent for deep personalization and multi-turn context.
 
 - **Enterprise Document Intelligence**  
-  Document ingestion and retrieval using **Azure Blob Storage** and Azure AI Search
+  Powered by **Azure Blob Storage** and Azure AI Search for document ingestion, indexing, and contextual retrieval.
 
-- **Multitenant Deployment**  
-  Designed to support multiple users/clients with isolated threads, memory, and data
+- **Cloud-Native Deployment Infrastructure**  
+  The full stack will run on:
+  - **Azure Container Service (ACS)** for image lifecycle management
+  - **Azure Kubernetes Service (AKS)** for orchestrating scalable, containerized agent workloads
 
-This phase aims to bring a **SaaS-level, multi-tenant, intelligent automation system** to life — powering real estate professionals with fast, reliable, and deeply contextual AI agents.
+- **Next.js Web Interface (Coming Soon)**  
+  A custom, production-ready frontend with authentication, streaming, upload support, and role-based session history — replacing the prototype Gradio UI.
+
+- **Multitenant Architecture**  
+  Designed to support multiple organizations with isolated threads, memory, and document access per tenant.
+
+This phase aims to deliver an intelligent automation platform for real estate professionals — scalable, secure, and extensible by design.
+
