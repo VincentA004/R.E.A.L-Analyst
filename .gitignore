@@ -5,3 +5,5 @@ settings.json
 rentcast_openapi.json
 schema_with_api_key.json
 test_tool.py
+foundry_sdk_phase/frontend/__pycache__
+foundry_sdk_phase/backend/__pycache__

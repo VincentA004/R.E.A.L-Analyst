@@ -2,113 +2,83 @@ import os
 import logging
 from typing import Optional
 
-from azure.core.credentials import AzureKeyCredential
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-from azure.cosmos.aio import CosmosClient
-from azure.ai.project.aio import AIProjectClient
-from azure.search.documents.aio import SearchClient
-from semantic_kernel.kernel import Kernel
-from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from dotenv import load_dotenv
+from azure.cosmos.aio import CosmosClient
+from azure.identity.aio import DefaultAzureCredential, ManagedIdentityCredential
 
-# Load environment variables from a .env file
+# Load environment variables from .env file
 load_dotenv()
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class AppConfig:
-    """
-    Application configuration class that loads settings from environment variables
-    and provides centralized client management for Azure services.
-    """
+    """Application configuration class that loads settings from environment variables."""
+
     def __init__(self):
-        # Azure OpenAI / Chat Model Settings
-        self.AZURE_OPENAI_ENDPOINT = self._get_required("AZURE_OPENAI_ENDPOINT")
-        self.AZURE_OPENAI_DEPLOYMENT_NAME = self._get_required("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o")
-        self.AZURE_OPENAI_API_VERSION = self._get_optional("AZURE_OPENAI_API_VERSION", "2024-05-01-preview")
+        """Initialize the application configuration."""
         
-        # Azure AI Project (Agent Service / Foundry) Settings
-        self.AZURE_AI_PROJECT_ENDPOINT = self._get_required("AZURE_AI_PROJECT_ENDPOINT")
-        self.AZURE_AI_SUBSCRIPTION_ID = self._get_required("AZURE_AI_SUBSCRIPTION_ID")
-        self.AZURE_AI_RESOURCE_GROUP = self._get_required("AZURE_AI_RESOURCE_GROUP")
-        self.AZURE_AI_PROJECT_NAME = self._get_required("AZURE_AI_PROJECT_NAME")
-        self.AZURE_AI_AGENT_MODEL_DEPLOYMENT_NAME = self._get_optional("AZURE_AI_AGENT_MODEL_DEPLOYMENT_NAME", self.AZURE_OPENAI_DEPLOYMENT_NAME)
+        # --- Authentication Settings ---
+        self.AZURE_TENANT_ID = self._get_optional("AZURE_TENANT_ID")
+        self.AZURE_CLIENT_ID = self._get_optional("AZURE_CLIENT_ID")
+        self.AZURE_CLIENT_SECRET = self._get_optional("AZURE_CLIENT_SECRET")
+        self.APP_ENV = self._get_optional("APP_ENV", "dev")
 
-        # Cosmos DB Settings (for Agent Memory)
+        # --- Azure AI Agent Service Settings ---
+        self.AZURE_AI_AGENT_ENDPOINT = self._get_required("AZURE_AI_AGENT_ENDPOINT")
+        self.AZURE_AI_AGENT_API_KEY = self._get_required("AZURE_AI_AGENT_API_KEY")
+
+        # --- Cosmos DB Settings (for BYO Storage) ---
         self.COSMOSDB_ENDPOINT = self._get_required("COSMOSDB_ENDPOINT")
-        self.COSMOSDB_DATABASE = self._get_optional("COSMOSDB_DATABASE", "real-estate-db")
-        self.COSMOSDB_CONTAINER = self._get_optional("COSMOSDB_CONTAINER", "memory")
+        self.COSMOSDB_DATABASE = self._get_required("COSMOSDB_DATABASE", "enterprise_memory")
         
-        # Azure AI Search Settings (for RAG)
-        self.AZURE_SEARCH_ENDPOINT = self._get_required("AZURE_SEARCH_ENDPOINT")
-        self.AZURE_SEARCH_API_KEY = self._get_required("AZURE_SEARCH_API_KEY")
-        self.AZURE_SEARCH_INDEX_NAME = self._get_optional("AZURE_SEARCH_INDEX_NAME", "property-docs-index")
+        # --- File Search (RAG) Settings ---
+        self.AZURE_STORAGE_CONNECTION_STRING = self._get_required("AZURE_STORAGE_CONNECTION_STRING")
 
-        # Cached clients and credentials
-        self._credential = None
-        self._token_provider = None
+        # --- Cached Clients ---
+        self._azure_credential = None
         self._cosmos_client = None
-        self._ai_project_client = None
-        self._search_client = None
+        self._cosmos_database = None
 
     def _get_required(self, name: str, default: Optional[str] = None) -> str:
-        value = os.getenv(name, default)
-        if value is None:
-            raise ValueError(f"Required environment variable '{name}' not found.")
-        return value
+        """Get a required configuration value."""
+        value = os.environ.get(name)
+        if value:
+            return value
+        if default:
+            return default
+        raise ValueError(f"Required environment variable '{name}' not found.")
 
     def _get_optional(self, name: str, default: str = "") -> str:
-        return os.getenv(name, default)
+        """Get an optional configuration value."""
+        return os.environ.get(name, default)
 
-    def get_credential(self) -> DefaultAzureCredential:
-        if self._credential is None:
-            self._credential = DefaultAzureCredential()
-        return self._credential
+    def get_azure_credential(self):
+        """
+        Returns the appropriate async Azure credential based on the environment.
+        - In 'dev' mode, it uses DefaultAzureCredential.
+        - In 'prod' mode, it uses ManagedIdentityCredential.
+        """
+        if self._azure_credential is None:
+            if self.APP_ENV == "dev":
+                self._azure_credential = DefaultAzureCredential()
+            else:
+                self._azure_credential = ManagedIdentityCredential(client_id=self.AZURE_CLIENT_ID)
+        return self._azure_credential
 
-    def get_token_provider(self):
-        if self._token_provider is None:
-            self._token_provider = get_bearer_token_provider(
-                self.get_credential(), "https://cognitiveservices.azure.com/.default"
-            )
-        return self._token_provider
+    def get_cosmos_database_client(self):
+        """Get a cached async Cosmos DB client for the configured database."""
+        try:
+            if self._cosmos_client is None:
+                self._cosmos_client = CosmosClient(
+                    self.COSMOSDB_ENDPOINT, credential=self.get_azure_credential()
+                )
 
-    def create_kernel(self) -> Kernel:
-        """Creates a new Semantic Kernel instance with the primary chat service."""
-        kernel = Kernel()
-        chat_service = AzureChatCompletion(
-            deployment_name=self.AZURE_OPENAI_DEPLOYMENT_NAME,
-            endpoint=self.AZURE_OPENAI_ENDPOINT,
-            api_version=self.AZURE_OPENAI_API_VERSION,
-            azure_ad_token_provider=self.get_token_provider(),
-        )
-        kernel.add_service(chat_service)
-        return kernel
+            if self._cosmos_database is None:
+                self._cosmos_database = self._cosmos_client.get_database_client(
+                    self.COSMOSDB_DATABASE
+                )
+            return self._cosmos_database
+        except Exception as exc:
+            logging.error("Failed to create CosmosDB client: %s", exc)
+            raise
 
-    async def get_cosmos_client(self) -> CosmosClient:
-        if self._cosmos_client is None:
-            self._cosmos_client = CosmosClient(
-                self.COSMOSDB_ENDPOINT, credential=self.get_credential()
-            )
-        return self._cosmos_client
-
-    def get_ai_project_client(self) -> AIProjectClient:
-        if self._ai_project_client is None:
-            self._ai_project_client = AIProjectClient(
-                subscription_id=self.AZURE_AI_SUBSCRIPTION_ID,
-                resource_group_name=self.AZURE_AI_RESOURCE_GROUP,
-                project_name=self.AZURE_AI_PROJECT_NAME,
-                credential=self.get_credential(),
-                endpoint=self.AZURE_AI_PROJECT_ENDPOINT
-            )
-        return self._ai_project_client
-    
-    async def get_search_client(self) -> SearchClient:
-        if self._search_client is None:
-            self._search_client = SearchClient(
-                endpoint=self.AZURE_SEARCH_ENDPOINT,
-                index_name=self.AZURE_SEARCH_INDEX_NAME,
-                credential=AzureKeyCredential(self.AZURE_SEARCH_API_KEY)
-            )
-        return self._search_client
-
-# Create a single, globally accessible instance of the config
+# Create a global instance for easy access throughout the application
 config = AppConfig()
